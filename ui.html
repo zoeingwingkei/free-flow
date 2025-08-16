@@ -74,7 +74,7 @@
       margin: 0;
     }
 
-    .input-area {
+    .input-area{
       display: flex;
       align-items: center;
       height: 24px;
@@ -83,6 +83,27 @@
       padding: 0 5px;
       border-radius: 4px;
       background-color: var(--figma-color-bg-secondary);
+    }
+
+    .button-group-container  {
+      display: flex;
+      align-items: center;
+      height: 24px;
+      border-radius: 4px;
+      background-color: var(--figma-color-bg-secondary);
+      overflow: hidden;
+    }
+
+    .button-group-button{
+      background-color: none;
+      background: none;
+      border: none;
+      height: 100%;
+      color: var(--figma-color-icon);
+    }
+
+    .button-group-button:hover {
+      background-color: var(--figma-color-bg-tertiary);
     }
 
     .object-name-container {
@@ -338,7 +359,7 @@
       flex-grow: 1;
     }
 
-    .flip-button {
+    .flip-button{
       color: var(--figma-color-text);
       background: none;
       border-radius: 4px;
@@ -494,6 +515,15 @@
         <div class="object-name-container">
           <div class="object-name" id="endObjectName"></div>
         </div>
+        <div class="button-group-container">
+          <button class="button-group-button" id="verticalButton">
+            <div class="icon-container static-icon medium-icon icon-vertical"></div>
+          </button>
+          <div class="divider"></div>
+          <button class="button-group-button" id="horizontalButton">
+            <div class="icon-container static-icon medium-icon icon-horizontal"></div>
+          </button>
+        </div>
       </div>
       <div class="row">
         <div class="input-area">
@@ -578,6 +608,12 @@
 </svg>`,
 'icon-dash':`<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
   <path d="M3.75 7.25C4.16421 7.25 4.5 7.58579 4.5 8C4.5 8.41421 4.16421 8.75 3.75 8.75H2.25C1.83579 8.75 1.5 8.41421 1.5 8C1.5 7.58579 1.83579 7.25 2.25 7.25H3.75ZM8.75 7.25C9.16421 7.25 9.5 7.58579 9.5 8C9.5 8.41421 9.16421 8.75 8.75 8.75H7.25C6.83579 8.75 6.5 8.41421 6.5 8C6.5 7.58579 6.83579 7.25 7.25 7.25H8.75ZM13.75 7.25C14.1642 7.25 14.5 7.58579 14.5 8C14.5 8.41421 14.1642 8.75 13.75 8.75H12.25C11.8358 8.75 11.5 8.41421 11.5 8C11.5 7.58579 11.8358 7.25 12.25 7.25H13.75Z" fill="#C3C3C3"/>
+</svg>`,
+'icon-vertical': `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+  <path d="M9.875 13C10.2202 13 10.5 13.2798 10.5 13.625C10.5 13.9702 10.2202 14.25 9.875 14.25H6.125C5.77982 14.25 5.5 13.9702 5.5 13.625C5.5 13.2798 5.77982 13 6.125 13H9.875ZM8 4.25C8.34518 4.25 8.625 4.52982 8.625 4.875V11.125C8.625 11.4702 8.34518 11.75 8 11.75C7.65482 11.75 7.375 11.4702 7.375 11.125V4.875C7.375 4.52982 7.65482 4.25 8 4.25ZM9.875 1.75C10.2202 1.75 10.5 2.02982 10.5 2.375C10.5 2.72018 10.2202 3 9.875 3H6.125C5.77982 3 5.5 2.72018 5.5 2.375C5.5 2.02982 5.77982 1.75 6.125 1.75H9.875Z" fill="white"/>
+</svg>`,
+'icon-horizontal': `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" fill="none">
+  <path d="M2.40039 10.1004C2.40017 10.4868 2.08657 10.7995 1.7002 10.7996C1.31373 10.7996 1.00022 10.4868 1 10.1004V5.90021C1 5.51361 1.3136 5.20001 1.7002 5.20001C2.0867 5.20012 2.40039 5.51367 2.40039 5.90021V10.1004ZM12.2002 7.99982C12.2002 8.38642 11.8866 8.70001 11.5 8.70001H4.5C4.1134 8.70001 3.7998 8.38642 3.7998 7.99982C3.7999 7.6133 4.11346 7.29962 4.5 7.29962H11.5C11.8865 7.29962 12.2001 7.6133 12.2002 7.99982ZM15 10.1004C14.9998 10.4868 14.6863 10.7996 14.2998 10.7996C13.9134 10.7995 13.5998 10.4868 13.5996 10.1004V5.90021C13.5996 5.51367 13.9133 5.20012 14.2998 5.20001C14.6864 5.20001 15 5.51361 15 5.90021V10.1004Z" fill="white"/>
 </svg>`,
       },
 
