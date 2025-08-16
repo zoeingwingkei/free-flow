@@ -254,7 +254,6 @@ const GeometryCalculator = {
     } else if (position.includes('T') || position.includes('B')) {
       direction = 'vertical';
     }
-    // console.log('[Free Flow] get Direction: ', direction);
     return direction;
   },
 
