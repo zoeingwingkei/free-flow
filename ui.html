@@ -776,7 +776,9 @@
           selectedArrowProps: document.querySelector('.selected-arrow-props'),
           startObjectName: document.getElementById('startObjectName'),
           endObjectName: document.getElementById('endObjectName'),
-          textInput: document.getElementById('text')
+          textInput: document.getElementById('text'),
+          verticalButton: document.getElementById('verticalButton'),
+          horizontalButton: document.getElementById('horizontalButton'),
         }
       },
 
@@ -1045,6 +1047,25 @@
               type: 'flip',
             }
           }, '*')
+        })
+
+        // Vertical & Horizontal buttons
+        UI.elements.verticalButton.addEventListener('click', () => {
+          parent.postMessage({
+            pluginMessage: {
+              type: 'set-direction',
+              direction: 'vertical'
+            }
+          }, '*');
+        })
+
+        UI.elements.horizontalButton.addEventListener('click', () => {
+          parent.postMessage({
+            pluginMessage: {
+              type: 'set-direction',
+              direction: 'horizontal'
+            }
+          }, '*');
         })
 
         // Auto draw toggle

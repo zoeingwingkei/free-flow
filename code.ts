@@ -43,6 +43,15 @@ interface ArrowText {
   text: string;
 }
 
+interface ArrowAnchors {
+  startX: number;
+  startY: number;
+  endX: number;
+  endY: number;
+}
+
+type ArrowDirection = 'vertical' | 'horizontal' | 'invalid';
+
 interface Arrow {
   id: string;
   startNodeID: string;
@@ -53,6 +62,7 @@ interface Arrow {
   style: ArrowStyle;
   name: ArrowName;
   text?: ArrowText;
+  direction: ArrowDirection;
 }
 
 /** UTILITY MODULES */
@@ -236,47 +246,77 @@ const GeometryCalculator = {
     return posResult;
   },
 
-  getAnchorPoints(startRect: Rect, endRect: Rect, startMargin: number, endMargin: number): { startX: number, startY: number, endX: number, endY: number } {
+  getDirection(rect1: Rect, rect2: Rect): ArrowDirection {
+    const position = this.getRelativePosition(rect1, rect2);
+    let direction: ArrowDirection = 'invalid';
+    if (position.includes('L') || position.includes('R')) {
+      direction = 'horizontal';
+    } else if (position.includes('T') || position.includes('B')) {
+      direction = 'vertical';
+    }
+    // console.log('[Free Flow] get Direction: ', direction);
+    return direction;
+  },
+
+  getValidDirection(direction: ArrowDirection, rect1: Rect, rect2: Rect): ArrowDirection {
+    const position = this.getRelativePosition(rect1, rect2);
+    let newDirection: ArrowDirection = 'invalid';
+    switch (direction) {
+      case 'horizontal':
+        if (position.includes('L') || position.includes('R')) {
+          newDirection = direction;
+        } else {
+          newDirection = this.getDirection(rect1, rect2);
+        }
+        break;
+      case 'vertical':
+        if (position.includes('T') || position.includes('B')) {
+          newDirection = direction;
+        } else {
+          newDirection = this.getDirection(rect1, rect2);
+        }
+        break;
+      default:
+        newDirection = this.getDirection(rect1, rect2);
+    }
+    return newDirection;
+  },
+
+  getAnchorPoints(startRect: Rect, endRect: Rect, startMargin: number, endMargin: number, direction: ArrowDirection): ArrowAnchors {
     const position = this.getRelativePosition(startRect, endRect);
     let startX: number, startY: number, endX: number, endY: number;
 
-    switch (position) {
-      case 'TR':
-      case 'MR':
-      case 'BR':
-        // End object is to the right
-        startX = startRect.x + startRect.width + startMargin;
-        startY = startRect.y + startRect.height / 2;
-        endX = endRect.x - endMargin;
-        endY = endRect.y + endRect.height / 2;
+    switch (direction) {
+      case 'horizontal':
+        if (position.includes('L')) {
+          // End object is to the left
+          startX = startRect.x - startMargin;
+          startY = startRect.y + startRect.height / 2;
+          endX = endRect.x + endRect.width + endMargin;
+          endY = endRect.y + endRect.height / 2;
+        } else {
+          // End object is to the right
+          startX = startRect.x + startRect.width + startMargin;
+          startY = startRect.y + startRect.height / 2;
+          endX = endRect.x - endMargin;
+          endY = endRect.y + endRect.height / 2;
+        }
         break;
-
-      case 'TL':
-      case 'ML':
-      case 'BL':
-        // End object is to the left
-        startX = startRect.x - startMargin;
-        startY = startRect.y + startRect.height / 2;
-        endX = endRect.x + endRect.width + endMargin;
-        endY = endRect.y + endRect.height / 2;
+      case 'vertical':
+        if (position.includes('T')) {
+          // End object is above
+          startX = startRect.x + startRect.width / 2;
+          startY = startRect.y - startMargin;
+          endX = endRect.x + endRect.width / 2;
+          endY = endRect.y + endRect.height + endMargin;
+        } else {
+          // End object is below
+          startX = startRect.x + startRect.width / 2;
+          startY = startRect.y + startRect.height + startMargin;
+          endX = endRect.x + endRect.width / 2;
+          endY = endRect.y - endMargin;
+        }
         break;
-
-      case 'TM':
-        // End object is above
-        startX = startRect.x + startRect.width / 2;
-        startY = startRect.y - startMargin;
-        endX = endRect.x + endRect.width / 2;
-        endY = endRect.y + endRect.height + endMargin;
-        break;
-
-      case 'BM':
-        // End object is below
-        startX = startRect.x + startRect.width / 2;
-        startY = startRect.y + startRect.height + startMargin;
-        endX = endRect.x + endRect.width / 2;
-        endY = endRect.y - endMargin;
-        break;
-
       default:
         throw new Error(`Invalid position for arrow creation: ${position}`);
     }
@@ -284,9 +324,10 @@ const GeometryCalculator = {
     return { startX, startY, endX, endY };
   },
 
-  getArrowVertices(startRect: Rect, endRect: Rect, geometry: ArrowGeometry): VectorVertex[] {
+  getArrowVertices(startRect: Rect, endRect: Rect, geometry: ArrowGeometry, direction: ArrowDirection): VectorVertex[] {
     const { startMargin, endMargin, startCap, endCap, lineStyle } = geometry;
-    const { startX, startY, endX, endY } = this.getAnchorPoints(startRect, endRect, startMargin, endMargin);
+
+    const { startX, startY, endX, endY } = this.getAnchorPoints(startRect, endRect, startMargin, endMargin, direction);
 
     let vertices: VectorVertex[] = [];
 
@@ -305,13 +346,8 @@ const GeometryCalculator = {
       ]
     } else if (lineStyle === 'GRID') {
       const position = this.getRelativePosition(startRect, endRect);
-      switch (position) {
-        case 'TR':
-        case 'MR':
-        case 'BR':
-        case 'TL':
-        case 'ML':
-        case 'BL':
+      switch (direction) {
+        case 'horizontal':
           // Horizontal-first L-shaped arrow
           vertices = [
             {
@@ -341,8 +377,7 @@ const GeometryCalculator = {
           ];
           break;
 
-        case 'TM':
-        case 'BM':
+        case 'vertical':
           // Vertical-first L-shaped arrow
           vertices = [
             {
@@ -382,23 +417,17 @@ const GeometryCalculator = {
     return vertices;
   },
 
-  getArrowSegments(vertexCount: number, startRect: Rect, endRect: Rect, geometry: ArrowGeometry): VectorSegment[] {
+  getArrowSegments(vertexCount: number, startRect: Rect, endRect: Rect, geometry: ArrowGeometry, direction: ArrowDirection): VectorSegment[] {
     const { lineStyle, startMargin, endMargin } = geometry;
 
     let segments: VectorSegment[] = [];
 
     if (lineStyle === 'CURVE') {
-      const { startX, startY, endX, endY } = this.getAnchorPoints(startRect, endRect, startMargin, endMargin);
+      const { startX, startY, endX, endY } = this.getAnchorPoints(startRect, endRect, startMargin, endMargin, direction);
       const position = this.getRelativePosition(startRect, endRect);
 
-      switch (position) {
-        case 'TR':
-        case 'MR':
-        case 'BR':
-        case 'TL':
-        case 'ML':
-        case 'BL':
-          // Horizontal
+      switch (direction) {
+        case 'horizontal':
           segments = [
             {
               start: 0,
@@ -409,9 +438,7 @@ const GeometryCalculator = {
           ]
           break;
 
-        case 'TM':
-        case 'BM':
-          // Vertical
+        case 'vertical':
           segments = [
             {
               start: 0,
@@ -705,12 +732,12 @@ class ArrowManager {
   }
 
   async cleanUpArrows() {
-    
+
     this.arrows.forEach(async (arrow) => {
       const arrowNode = await figma.getNodeByIdAsync(arrow.id);
       if (!arrowNode) {
         this.removeArrow(arrow.id);
- 
+
       } else {
         const startNode = await figma.getNodeByIdAsync(arrow.startNodeID);
         const endNode = await figma.getNodeByIdAsync(arrow.endNodeID);
@@ -720,10 +747,10 @@ class ArrowManager {
         }
       }
     });
-    
+
   }
- 
-  async updateArrow(id: string, newStyle?: ArrowStyle, newGeometry?: ArrowGeometry, newText?: ArrowText): Promise<VectorNode | null> {
+
+  async updateArrow(id: string, newStyle?: ArrowStyle, newGeometry?: ArrowGeometry, newText?: ArrowText, newDirection?: ArrowDirection): Promise<VectorNode | null> {
 
     // If this arrow is already being updated, skip
     if (this.updatingArrows.has(id)) {
@@ -765,7 +792,11 @@ class ArrowManager {
       const style = newStyle || { ...arrow.style };
       const text = newText || { ...arrow.text } as ArrowText;
 
-      await this.updateArrowVector(typedArrowNode, geometry, typedStartNode, typedEndNode);
+      // Get direction, also check if the direction is valid, if not, reassign the direction
+      let direction = newDirection || arrow.direction;
+      direction = GeometryCalculator.getValidDirection(direction, NodeUtils.getAbsoluteBounds(typedStartNode), NodeUtils.getAbsoluteBounds(typedEndNode));
+
+      await this.updateArrowVector(typedArrowNode, geometry, typedStartNode, typedEndNode, direction);
       this.updateArrowStyle(typedArrowNode, style);
       this.updateArrowName(typedArrowNode, arrow.name);
 
@@ -778,9 +809,10 @@ class ArrowManager {
         startRect: NodeUtils.getAbsoluteBounds(typedStartNode),
         endRect: NodeUtils.getAbsoluteBounds(typedEndNode)
       };
+      arrow.direction = direction;
 
       // Refresh arrow text
-      await this.refreshArrowText(id, text, typedStartNode, typedEndNode);
+      await this.refreshArrowText(id, text, typedStartNode, typedEndNode, GeometryCalculator.getAnchorPoints(typedStartNode, typedEndNode, geometry.startMargin, geometry.endMargin, direction));
 
       return typedArrowNode;
     } catch (error) {
@@ -794,7 +826,7 @@ class ArrowManager {
 
 
   // Refresh the arrow text node to the latest text status
-  async refreshArrowText(arrowID: string, text: ArrowText, startNode: SceneNode, endNode: SceneNode): Promise<void> {
+  async refreshArrowText(arrowID: string, text: ArrowText, startNode: SceneNode, endNode: SceneNode, anchors: ArrowAnchors): Promise<void> {
     const arrow = this.arrows.get(arrowID);
     if (!arrow) {
       console.error('Arrow not found');
@@ -808,7 +840,7 @@ class ArrowManager {
         // If there is text, update the text node
         const textFrameNode = await figma.getNodeByIdAsync(textNodeID) as FrameNode;
         if (textFrameNode) {
-          await this.updateArrowText(textFrameNode, text, arrow.style, startNode, endNode);
+          await this.updateArrowText(textFrameNode, text, arrow.style, startNode, endNode, anchors);
           return;
         }
       }
@@ -818,7 +850,7 @@ class ArrowManager {
       // If there is text, create a new text node
       if (text && text.text && text.text !== '') {
         const textFrameNode = await figma.createFrame();
-        await this.updateArrowText(textFrameNode, text, arrow.style, startNode, endNode);
+        await this.updateArrowText(textFrameNode, text, arrow.style, startNode, endNode, anchors);
         arrow.textNodeID = textFrameNode.id;
       }
     }
@@ -907,11 +939,9 @@ class ArrowManager {
     return newArrow;
   }
 
-  async updateArrowText(textFrameNode: FrameNode, text: ArrowText, style: ArrowStyle, startNode: SceneNode, endNode: SceneNode): Promise<void> {
+  async updateArrowText(textFrameNode: FrameNode, text: ArrowText, style: ArrowStyle, startNode: SceneNode, endNode: SceneNode, anchors: ArrowAnchors): Promise<void> {
     const textNode = textFrameNode.children[0] as TextNode || figma.createText();
-    const startRect = NodeUtils.getAbsoluteBounds(startNode);
-    const endRect = NodeUtils.getAbsoluteBounds(endNode);
-    const { startX, startY, endX, endY } = GeometryCalculator.getAnchorPoints(startRect, endRect, 0, 0);
+    const { startX, startY, endX, endY } = anchors;
     const backgroundColor = style.color;
     const fontSize = style.weight * 2 + 8;
     const padding = fontSize / 2;
@@ -958,12 +988,15 @@ class ArrowManager {
     const startPos = NodeUtils.getAbsoluteBounds(startNode);
     const endPos = NodeUtils.getAbsoluteBounds(endNode);
 
+    // Get direction
+    const direction = GeometryCalculator.getDirection(startPos, endPos);
+
     // Get names
     const arrowName = { startName: startNode.name, endName: endNode.name } as ArrowName;
 
     // Create arrow, note: text node is not created, it will be created when the arrow is updated
     const arrow = figma.createVector();
-    await this.updateArrowVector(arrow, geometry, startNode, endNode);
+    await this.updateArrowVector(arrow, geometry, startNode, endNode, direction);
     this.updateArrowStyle(arrow, style);
     this.updateArrowName(arrow, arrowName);
 
@@ -982,12 +1015,13 @@ class ArrowManager {
       geometry: geometry,
       style: style,
       name: arrowName,
+      direction: direction
     })
 
     return arrow;
   }
 
-  async updateArrowVector(arrowNode: VectorNode, geometry: ArrowGeometry, startNode: SceneNode, endNode: SceneNode): Promise<void> {
+  async updateArrowVector(arrowNode: VectorNode, geometry: ArrowGeometry, startNode: SceneNode, endNode: SceneNode, direction: ArrowDirection): Promise<void> {
     try {
 
       arrowNode.x = 0;
@@ -996,8 +1030,8 @@ class ArrowManager {
       const startPos = NodeUtils.getAbsoluteBounds(startNode);
       const endPos = NodeUtils.getAbsoluteBounds(endNode);
 
-      const newVertices = GeometryCalculator.getArrowVertices(startPos, endPos, geometry);
-      const newSegments = GeometryCalculator.getArrowSegments(newVertices.length, startPos, endPos, geometry);
+      const newVertices = GeometryCalculator.getArrowVertices(startPos, endPos, geometry, direction);
+      const newSegments = GeometryCalculator.getArrowSegments(newVertices.length, startPos, endPos, geometry, direction);
 
       await arrowNode.setVectorNetworkAsync({
         vertices: newVertices,
@@ -1138,6 +1172,23 @@ class UIMessenger {
     }
   }
 
+  async handleSetDirection(direction: ArrowDirection) {
+    const arrow = this.selection.getSelectedArrow();
+    if (arrow) {
+      const newArrow = await this.arrowManager.updateArrow(arrow.id, undefined, undefined, undefined, direction).catch(
+        error => {
+          console.log('Error setting direction:', error);
+          figma.notify('Failed to set arrow direction. Please try again.');
+          return null;
+        }
+      )
+      if (newArrow) {
+        figma.currentPage.selection = [newArrow as SceneNode];
+        this.sendSelectedArrow(newArrow as SceneNode);
+      }
+    }
+  }
+
   async attachMessageListeners() {
     figma.ui.onmessage = async (msg) => {
       try {
@@ -1153,6 +1204,9 @@ class UIMessenger {
             break;
           case 'flip':
             this.handleFlipArrow();
+            break;
+          case 'set-direction':
+            this.handleSetDirection(msg.direction);
             break;
         }
       } catch (error) {
