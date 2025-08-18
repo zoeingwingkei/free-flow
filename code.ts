@@ -1281,6 +1281,9 @@ class UIMessenger {
         startStrokeCap: savedArrow.geometry.startCap,
         endStrokeCap: savedArrow.geometry.endCap,
         lineStyle: savedArrow.geometry.lineStyle,
+        strokeRadius: savedArrow.style.radius,
+        strokeDash: savedArrow.style.dash,
+        strokeDashGap: savedArrow.style.dashGap,
         text: text?.text || ''
       })
     } else {

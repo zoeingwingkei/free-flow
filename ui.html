@@ -808,6 +808,7 @@
       },
 
       udpateStrokeDisplay() {
+        console.log('Updating stroke display with state, dash & dash gap:', State.state.dashDash, State.state.strokeDashGap);
         this.elements.strokeWeightPicker.value = State.state.strokeWeight;
         this.elements.strokeStartMarginPicker.value = State.state.strokeStartMargin;
         this.elements.strokeEndMarginPicker.value = State.state.strokeEndMargin;
