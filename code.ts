@@ -811,7 +811,7 @@ class ArrowManager {
       arrow.direction = direction;
 
       // Refresh arrow text
-      await this.refreshArrowText(id, text, typedStartNode, typedEndNode, GeometryCalculator.getAnchorPoints(typedStartNode, typedEndNode, geometry.startMargin, geometry.endMargin, direction));
+      await this.refreshArrowText(id, text, typedStartNode, typedEndNode, GeometryCalculator.getAnchorPoints(arrow.position.startRect, arrow.position.endRect, geometry.startMargin, geometry.endMargin, direction));
 
       return typedArrowNode;
     } catch (error) {
