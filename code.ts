@@ -538,7 +538,7 @@ class State {
       const value = newState[key as keyof PluginState];
       const storageKey = State.STORAGE_KEYS[key as keyof PluginState];
       if (value !== undefined && storageKey !== undefined) {
-        this.document.setPluginData(storageKey, value.toString());
+        this.document.setPluginData(storageKey, value === null ? 'null' : value.toString());
       }
     })
 
@@ -958,7 +958,7 @@ class ArrowManager {
 
     // Resolve text color: use custom if set, otherwise auto-compute from background
     const resolvedTextColor = style.textColor
-      ? ColorUtils.hexToFigmaRGB(style.textColor)
+      ? ColorUtils.hexToFigmaRGB(style.textColor as string)
       : ColorUtils.getTextColor(backgroundColor);
 
     // Set text node properties
