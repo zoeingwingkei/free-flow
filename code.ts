@@ -1112,6 +1112,14 @@ class UIMessenger {
     });
   }
 
+  getResolvedTextColor(): string {
+    const { color, textColor } = this.state.getState();
+    if (textColor) return textColor;
+    const rgb = ColorUtils.getTextColor(color);
+    const toHex = (n: number) => { const h = Math.round(n * 255).toString(16); return h.length === 1 ? '0' + h : h; };
+    return `${toHex(rgb.r)}${toHex(rgb.g)}${toHex(rgb.b)}`.toUpperCase();
+  }
+
   sendStateToUI() {
     figma.ui.postMessage({
       type: 'state-update',
@@ -1126,7 +1134,8 @@ class UIMessenger {
       startStrokeCap: this.state.getState().startCap,
       endStrokeCap: this.state.getState().endCap,
       lineStyle: this.state.getState().lineStyle,
-      textColor: this.state.getState().textColor
+      textColor: this.state.getState().textColor,
+      resolvedTextColor: this.getResolvedTextColor()
     })
   }
 
@@ -1306,7 +1315,8 @@ class UIMessenger {
         strokeDash: savedArrow.style.dash,
         strokeDashGap: savedArrow.style.dashGap,
         text: text?.text || '',
-        textColor: savedArrow.style.textColor
+        textColor: savedArrow.style.textColor,
+        resolvedTextColor: this.getResolvedTextColor()
       })
     } else {
       this.arrowManager.unmarkArrow(arrow);
