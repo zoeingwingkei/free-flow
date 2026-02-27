@@ -10,6 +10,7 @@ interface PluginState {
   startCap: StrokeCap;
   endCap: StrokeCap;
   lineStyle: string;
+  textColor: string | null; // null means auto (getTextColor), string means custom hex color
 }
 
 interface ArrowStyle {
@@ -19,6 +20,7 @@ interface ArrowStyle {
   radius: number;
   dash: number;
   dashGap: number;
+  textColor: string | null; // null means use auto color (getTextColor), string means custom color
 }
 
 interface ArrowName {
@@ -485,7 +487,8 @@ class State {
     dashGap: 0,
     startCap: 'ROUND' as StrokeCap,
     endCap: 'ARROW_LINES' as StrokeCap,
-    lineStyle: 'GRID' as string
+    lineStyle: 'GRID' as string,
+    textColor: null
   } as const;
   private static readonly STORAGE_KEYS = {
     color: 'savedColor',
@@ -498,7 +501,8 @@ class State {
     dashGap: 'savedDashGap',
     startCap: 'savedStartCap',
     endCap: 'savedEndCap',
-    lineStyle: 'savedLineStyle'
+    lineStyle: 'savedLineStyle',
+    textColor: 'savedTextColor'
   } as const;
 
   constructor() {
@@ -507,6 +511,7 @@ class State {
   }
 
   loadState(): PluginState {
+    const savedTextColor = this.document.getPluginData(State.STORAGE_KEYS.textColor);
     const loadedState: PluginState = {
       color: this.document.getPluginData(State.STORAGE_KEYS.color) || State.DEFAULTS.color,
       opacity: Number(this.document.getPluginData(State.STORAGE_KEYS.opacity)) || State.DEFAULTS.opacity,
@@ -518,7 +523,8 @@ class State {
       dashGap: Number(this.document.getPluginData(State.STORAGE_KEYS.dashGap)) || State.DEFAULTS.dashGap,
       startCap: this.document.getPluginData(State.STORAGE_KEYS.startCap) as StrokeCap || State.DEFAULTS.startCap,
       endCap: this.document.getPluginData(State.STORAGE_KEYS.endCap) as StrokeCap || State.DEFAULTS.endCap,
-      lineStyle: this.document.getPluginData(State.STORAGE_KEYS.lineStyle) as string || State.DEFAULTS.lineStyle
+      lineStyle: this.document.getPluginData(State.STORAGE_KEYS.lineStyle) as string || State.DEFAULTS.lineStyle,
+      textColor: savedTextColor === 'null' || savedTextColor === '' ? null : (savedTextColor || State.DEFAULTS.textColor)
     }
 
     return loadedState;
@@ -546,6 +552,7 @@ class State {
       radius: this.state.radius,
       dash: this.state.dash,
       dashGap: this.state.dashGap,
+      textColor: this.state.textColor,
     }
   }
 
@@ -949,12 +956,17 @@ class ArrowManager {
       textNode.fontName = { family: 'Inter', style: 'Regular' };
     });
 
+    // Resolve text color: use custom if set, otherwise auto-compute from background
+    const resolvedTextColor = style.textColor
+      ? ColorUtils.hexToFigmaRGB(style.textColor)
+      : ColorUtils.getTextColor(backgroundColor);
+
     // Set text node properties
     textNode.x = 0;
     textNode.y = 0;
     textNode.characters = text.text;
     textNode.fontSize = fontSize;
-    textNode.fills = [{ type: 'SOLID', color: ColorUtils.getTextColor(backgroundColor) }];
+    textNode.fills = [{ type: 'SOLID', color: resolvedTextColor }];
     textFrameNode.appendChild(textNode);
 
     // Text frame node properties
@@ -1113,11 +1125,13 @@ class UIMessenger {
       strokeDashGap: this.state.getState().dashGap,
       startStrokeCap: this.state.getState().startCap,
       endStrokeCap: this.state.getState().endCap,
-      lineStyle: this.state.getState().lineStyle
+      lineStyle: this.state.getState().lineStyle,
+      textColor: this.state.getState().textColor
     })
   }
 
   async handleStateChange(msg: any) {
+    const prevColor = this.state.getState().color;
     const newState: PluginState = {
       color: msg.strokeColor,
       opacity: msg.strokeOpacity,
@@ -1129,7 +1143,9 @@ class UIMessenger {
       dashGap: msg.strokeDashGap,
       startCap: msg.startStrokeCap,
       endCap: msg.endStrokeCap,
-      lineStyle: msg.lineStyle
+      lineStyle: msg.lineStyle,
+      // Reset textColor to null when stroke color changes; otherwise use the incoming value
+      textColor: msg.strokeColor !== prevColor ? null : (msg.textColor !== undefined ? msg.textColor : this.state.getState().textColor)
     }
     this.state.updateState(newState);
 
@@ -1284,7 +1300,8 @@ class UIMessenger {
         strokeRadius: savedArrow.style.radius,
         strokeDash: savedArrow.style.dash,
         strokeDashGap: savedArrow.style.dashGap,
-        text: text?.text || ''
+        text: text?.text || '',
+        textColor: savedArrow.style.textColor
       })
     } else {
       this.arrowManager.unmarkArrow(arrow);

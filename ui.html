@@ -179,7 +179,8 @@
       outline: var(--figma-color-border-selected) 1px solid;
     }
 
-    #colorPicker {
+    #colorPicker,
+    #textColorPicker {
       -webkit-appearance: none;
       -moz-appearance: none;
       appearance: none;
@@ -192,20 +193,34 @@
       border: 1px solid var(--figma-color-border);
     }
 
-    #colorPicker::-webkit-color-swatch-wrapper {
+    #colorPicker::-webkit-color-swatch-wrapper,
+    #textColorPicker::-webkit-color-swatch-wrapper {
       padding: 0;
     }
 
-    #colorPicker::-moz-color-swatch-wrapper {
+    #colorPicker::-moz-color-swatch-wrapper,
+    #textColorPicker::-moz-color-swatch-wrapper {
       padding: 0;
     }
 
-    #colorPicker::-webkit-color-swatch {
+    #colorPicker::-webkit-color-swatch,
+    #textColorPicker::-webkit-color-swatch {
       border: none;
     }
 
-    #colorPicker::-moz-color-swatch {
+    #colorPicker::-moz-color-swatch,
+    #textColorPicker::-moz-color-swatch {
       border: none;
+    }
+
+    .text-color-auto-indicator {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      border: 1px solid var(--figma-color-border);
+      background: linear-gradient(135deg, #000 50%, #fff 50%);
+      cursor: pointer;
+      flex-shrink: 0;
     }
 
     .medium-icon {
@@ -294,7 +309,6 @@
     }
 
     .selected-arrow-props {
-      height: 60px;
       width: 100%;
       display: flex;
       flex-direction: column;
@@ -534,6 +548,18 @@
           <input class="input-field" type="text" id="text" placeholder="Add text...">
         </div>
       </div>
+      <div class="row" id="textColorRow" style="display: none;">
+        <div class="color-picker input-area">
+          <div class="color-hex">
+            <!-- Auto indicator shown when textColor is null; clicking it sets a custom color -->
+            <div class="text-color-auto-indicator" id="textColorAutoIndicator" title="Text color: auto (click to customize)"></div>
+            <!-- Custom color picker; shown when textColor is set -->
+            <input type="color" id="textColorPicker" value="#000000" style="display: none;" />
+            <input type="text" class="input-field hex" id="textColorInput" value="" placeholder="Auto" maxlength="6" />
+          </div>
+          <span style="font-size: 11px; color: var(--figma-color-text-secondary); white-space: nowrap; padding-right: 2px;">Text</span>
+        </div>
+      </div>
     </div>
 
     <!-- Action Buttons -->
@@ -653,7 +679,8 @@
         endStrokeCap: 'ARROW_LINES', // Default end stroke cap
         lineStyle: 'GRID', // Default line style
         autoDraw: false, // Default auto draw state
-        text: '' // Default text
+        text: '', // Default text
+        textColor: null // null = auto (computed from stroke color), string = custom hex
       },
 
       // Post state changes to main thread
@@ -672,7 +699,8 @@
             strokeRadius: Number(this.state.strokeRadius),
             strokeDash: Number(this.state.strokeDash),
             strokeDashGap: Number(this.state.strokeDashGap),
-            text: this.state.text
+            text: this.state.text,
+            textColor: this.state.textColor
           }
         }, '*');
       },
@@ -690,6 +718,10 @@
         this.state.strokeRadius = msg.strokeRadius ?? this.state.strokeRadius;
         this.state.strokeDash = msg.strokeDash ?? this.state.strokeDash;
         this.state.strokeDashGap = msg.strokeDashGap ?? this.state.strokeDashGap;
+        // textColor: undefined in msg means no change; null means auto
+        if ('textColor' in msg) {
+          this.state.textColor = msg.textColor !== undefined ? msg.textColor : null;
+        }
       },
 
       updateState(updates) {
@@ -701,9 +733,19 @@
         const hexValue = ColorUtils.colorToHex(colorValue);
 
         if (ColorUtils.isValidHex(hexValue)) {
-          this.updateState({ strokeColor: hexValue });
+          // Reset text color to auto when stroke color changes
+          this.updateState({ strokeColor: hexValue, textColor: null });
         } else {
           // console.error(`Invalid hex color: ${hexValue}`);
+        }
+      },
+
+      updateTextColorState(colorValue) {
+        const hexValue = ColorUtils.colorToHex(colorValue);
+        if (ColorUtils.isValidHex(hexValue)) {
+          this.updateState({ textColor: hexValue });
+        } else if (colorValue === '' || colorValue === null) {
+          this.updateState({ textColor: null });
         }
       }
     }
@@ -783,6 +825,10 @@
           textInput: document.getElementById('text'),
           verticalButton: document.getElementById('verticalButton'),
           horizontalButton: document.getElementById('horizontalButton'),
+          textColorRow: document.getElementById('textColorRow'),
+          textColorPicker: document.getElementById('textColorPicker'),
+          textColorInput: document.getElementById('textColorInput'),
+          textColorAutoIndicator: document.getElementById('textColorAutoIndicator'),
         }
       },
 
@@ -793,6 +839,7 @@
         this.updateStrokeCapDisplay();
         this.updateLineStyleDisplay();
         this.updateAutoDrawToggle();
+        this.updateTextColorDisplay();
       },
 
       updateColorDisplay(skipElement = null) {
@@ -874,11 +921,38 @@
 
       hideArrowProperties() {
         this.elements.selectedArrowProps.classList.add('hidden');
+        this.elements.textColorRow.style.display = 'none';
       },
 
       updateTextInput(text) {
         State.state.text = text;
         this.elements.textInput.value = text;
+        // Show text color row only when there is text
+        this.elements.textColorRow.style.display = text ? 'flex' : 'none';
+      },
+
+      updateTextColorDisplay(skipElement = null) {
+        const { textColor } = State.state;
+        if (textColor === null) {
+          // Auto mode: show the gradient indicator, hide the color picker
+          this.elements.textColorAutoIndicator.style.display = 'block';
+          this.elements.textColorPicker.style.display = 'none';
+          if (skipElement !== this.elements.textColorInput) {
+            this.elements.textColorInput.value = '';
+            this.elements.textColorInput.placeholder = 'Auto';
+          }
+        } else {
+          // Custom color: hide the auto indicator, show the color picker swatch
+          this.elements.textColorAutoIndicator.style.display = 'none';
+          this.elements.textColorPicker.style.display = 'block';
+          if (skipElement !== this.elements.textColorPicker) {
+            this.elements.textColorPicker.value = ColorUtils.hexToColor(textColor);
+          }
+          if (skipElement !== this.elements.textColorInput) {
+            this.elements.textColorInput.value = textColor;
+            this.elements.textColorInput.placeholder = '';
+          }
+        }
       }
     }
 
@@ -892,6 +966,7 @@
         this.attachLineStyleListeners();
         this.attachButtonListeners();
         this.attachTextInputListeners();
+        this.attachTextColorListeners();
       },
 
       attachColorListeners() {
@@ -902,13 +977,15 @@
         });
         UI.elements.colorInput.addEventListener('input', (event) => {
           State.updateColorState(event.target.value);
-          UI.updateColorDisplay(event.target)
+          UI.updateColorDisplay(event.target);
+          UI.updateTextColorDisplay();
         })
 
         // Color Picker events
         UI.elements.colorPicker.addEventListener('input', (event) => {
           State.updateColorState(event.target.value);
-          UI.updateColorDisplay(skipElement = event.target)
+          UI.updateColorDisplay(event.target);
+          UI.updateTextColorDisplay();
         })
 
         // Opacity events
@@ -1095,9 +1172,45 @@
         UI.elements.textInput.addEventListener('input', (event) => {
           // Update local state immediately for UI responsiveness
           State.state.text = event.target.value;
+          // Show/hide text color row based on whether there's text
+          UI.elements.textColorRow.style.display = event.target.value ? 'flex' : 'none';
           // Debounce the message to main thread
           debouncedTextUpdate(event.target.value);
         })
+      },
+
+      attachTextColorListeners() {
+        // Clicking the auto indicator activates custom text color mode
+        UI.elements.textColorAutoIndicator.addEventListener('click', () => {
+          // Pick the current auto color as starting point (fallback to black)
+          const startColor = '000000';
+          State.updateTextColorState(startColor);
+          UI.updateTextColorDisplay();
+          // Open the color picker
+          UI.elements.textColorPicker.click();
+        });
+
+        // Text color picker (color input)
+        UI.elements.textColorPicker.addEventListener('input', (event) => {
+          State.updateTextColorState(event.target.value);
+          UI.updateTextColorDisplay(event.target);
+        });
+
+        // Text color hex input
+        UI.elements.textColorInput.addEventListener('click', function () {
+          this.select();
+        });
+        UI.elements.textColorInput.addEventListener('input', (event) => {
+          const value = event.target.value.trim();
+          if (value === '') {
+            // Empty input = reset to auto
+            State.updateState({ textColor: null });
+            UI.updateTextColorDisplay(event.target);
+          } else {
+            State.updateTextColorState(value);
+            UI.updateTextColorDisplay(event.target);
+          }
+        });
       }
     }
 
@@ -1136,6 +1249,7 @@
         // Display the selected arrow: start & end node name
         UI.showArrowProperties(msg.startNodeName, msg.endNodeName);
         UI.updateTextInput(msg.text);
+        UI.updateTextColorDisplay();
       },
 
       handleArrowDeselected() {
