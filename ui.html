@@ -767,7 +767,14 @@
         return /^[0-9A-F]{6}$/i.test(hex);
       },
 
-
+      // Returns '#000000' or '#FFFFFF' based on stroke luminance — mirrors code.ts getTextColor
+      getAutoTextColor(hex) {
+        const r = parseInt(hex.slice(0, 2), 16) / 255;
+        const g = parseInt(hex.slice(2, 4), 16) / 255;
+        const b = parseInt(hex.slice(4, 6), 16) / 255;
+        const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        return luminance > 0.5 ? '#000000' : '#FFFFFF';
+      },
     }
     const ValidationUtils = {
       validateNumberInput(value, min, max) {
@@ -927,8 +934,10 @@
       updateTextColorDisplay(skipElement = null) {
         const { textColor, strokeColor } = State.state;
         if (skipElement !== this.elements.textColorPicker) {
-          // Show the auto color (derived from stroke) when no custom color is set
-          const displayColor = textColor ? ColorUtils.hexToColor(textColor) : ColorUtils.hexToColor(strokeColor);
+          // Custom color if set, otherwise derive black/white from stroke luminance
+          const displayColor = textColor
+            ? ColorUtils.hexToColor(textColor)
+            : ColorUtils.getAutoTextColor(strokeColor);
           this.elements.textColorPicker.value = displayColor;
         }
       }
@@ -956,14 +965,14 @@
         UI.elements.colorInput.addEventListener('input', (event) => {
           State.updateColorState(event.target.value);
           UI.updateColorDisplay(event.target);
-          UI.updateTextColorDisplay();
+          UI.updateTextColorDisplay(null);
         })
 
         // Color Picker events
         UI.elements.colorPicker.addEventListener('input', (event) => {
           State.updateColorState(event.target.value);
           UI.updateColorDisplay(event.target);
-          UI.updateTextColorDisplay();
+          UI.updateTextColorDisplay(null);
         })
 
         // Opacity events
