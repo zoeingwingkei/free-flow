@@ -179,8 +179,7 @@
       outline: var(--figma-color-border-selected) 1px solid;
     }
 
-    #colorPicker,
-    #textColorPicker {
+    #colorPicker {
       -webkit-appearance: none;
       -moz-appearance: none;
       appearance: none;
@@ -193,34 +192,44 @@
       border: 1px solid var(--figma-color-border);
     }
 
-    #colorPicker::-webkit-color-swatch-wrapper,
+    #colorPicker::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    #colorPicker::-moz-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    #colorPicker::-webkit-color-swatch {
+      border: none;
+    }
+
+    #colorPicker::-moz-color-swatch {
+      border: none;
+    }
+
+    #textColorPicker {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      border: none;
+      padding: 0;
+      margin: 0;
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid var(--figma-color-border);
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
     #textColorPicker::-webkit-color-swatch-wrapper {
       padding: 0;
     }
 
-    #colorPicker::-moz-color-swatch-wrapper,
-    #textColorPicker::-moz-color-swatch-wrapper {
-      padding: 0;
-    }
-
-    #colorPicker::-webkit-color-swatch,
     #textColorPicker::-webkit-color-swatch {
       border: none;
-    }
-
-    #colorPicker::-moz-color-swatch,
-    #textColorPicker::-moz-color-swatch {
-      border: none;
-    }
-
-    .text-color-auto-indicator {
-      width: 16px;
-      height: 16px;
-      border-radius: 3px;
-      border: 1px solid var(--figma-color-border);
-      background: linear-gradient(135deg, #000 50%, #fff 50%);
-      cursor: pointer;
-      flex-shrink: 0;
+      border-radius: 2px;
     }
 
     .medium-icon {
@@ -546,18 +555,8 @@
       <div class="row">
         <div class="input-area">
           <input class="input-field" type="text" id="text" placeholder="Add text...">
-        </div>
-      </div>
-      <div class="row" id="textColorRow" style="display: none;">
-        <div class="color-picker input-area">
-          <div class="color-hex">
-            <!-- Auto indicator shown when textColor is null; clicking it sets a custom color -->
-            <div class="text-color-auto-indicator" id="textColorAutoIndicator" title="Text color: auto (click to customize)"></div>
-            <!-- Custom color picker; shown when textColor is set -->
-            <input type="color" id="textColorPicker" value="#000000" style="display: none;" />
-            <input type="text" class="input-field hex" id="textColorInput" value="" placeholder="Auto" maxlength="6" />
-          </div>
-          <span style="font-size: 11px; color: var(--figma-color-text-secondary); white-space: nowrap; padding-right: 2px;">Text</span>
+          <!-- Text color swatch, pinned to the right inside the text input field -->
+          <input type="color" id="textColorPicker" title="Text color" />
         </div>
       </div>
     </div>
@@ -825,10 +824,7 @@
           textInput: document.getElementById('text'),
           verticalButton: document.getElementById('verticalButton'),
           horizontalButton: document.getElementById('horizontalButton'),
-          textColorRow: document.getElementById('textColorRow'),
           textColorPicker: document.getElementById('textColorPicker'),
-          textColorInput: document.getElementById('textColorInput'),
-          textColorAutoIndicator: document.getElementById('textColorAutoIndicator'),
         }
       },
 
@@ -921,37 +917,19 @@
 
       hideArrowProperties() {
         this.elements.selectedArrowProps.classList.add('hidden');
-        this.elements.textColorRow.style.display = 'none';
       },
 
       updateTextInput(text) {
         State.state.text = text;
         this.elements.textInput.value = text;
-        // Show text color row only when there is text
-        this.elements.textColorRow.style.display = text ? 'flex' : 'none';
       },
 
       updateTextColorDisplay(skipElement = null) {
-        const { textColor } = State.state;
-        if (textColor === null) {
-          // Auto mode: show the gradient indicator, hide the color picker
-          this.elements.textColorAutoIndicator.style.display = 'block';
-          this.elements.textColorPicker.style.display = 'none';
-          if (skipElement !== this.elements.textColorInput) {
-            this.elements.textColorInput.value = '';
-            this.elements.textColorInput.placeholder = 'Auto';
-          }
-        } else {
-          // Custom color: hide the auto indicator, show the color picker swatch
-          this.elements.textColorAutoIndicator.style.display = 'none';
-          this.elements.textColorPicker.style.display = 'block';
-          if (skipElement !== this.elements.textColorPicker) {
-            this.elements.textColorPicker.value = ColorUtils.hexToColor(textColor);
-          }
-          if (skipElement !== this.elements.textColorInput) {
-            this.elements.textColorInput.value = textColor;
-            this.elements.textColorInput.placeholder = '';
-          }
+        const { textColor, strokeColor } = State.state;
+        if (skipElement !== this.elements.textColorPicker) {
+          // Show the auto color (derived from stroke) when no custom color is set
+          const displayColor = textColor ? ColorUtils.hexToColor(textColor) : ColorUtils.hexToColor(strokeColor);
+          this.elements.textColorPicker.value = displayColor;
         }
       }
     }
@@ -1172,44 +1150,15 @@
         UI.elements.textInput.addEventListener('input', (event) => {
           // Update local state immediately for UI responsiveness
           State.state.text = event.target.value;
-          // Show/hide text color row based on whether there's text
-          UI.elements.textColorRow.style.display = event.target.value ? 'flex' : 'none';
           // Debounce the message to main thread
           debouncedTextUpdate(event.target.value);
         })
       },
 
       attachTextColorListeners() {
-        // Clicking the auto indicator activates custom text color mode
-        UI.elements.textColorAutoIndicator.addEventListener('click', () => {
-          // Pick the current auto color as starting point (fallback to black)
-          const startColor = '000000';
-          State.updateTextColorState(startColor);
-          UI.updateTextColorDisplay();
-          // Open the color picker
-          UI.elements.textColorPicker.click();
-        });
-
-        // Text color picker (color input)
         UI.elements.textColorPicker.addEventListener('input', (event) => {
           State.updateTextColorState(event.target.value);
           UI.updateTextColorDisplay(event.target);
-        });
-
-        // Text color hex input
-        UI.elements.textColorInput.addEventListener('click', function () {
-          this.select();
-        });
-        UI.elements.textColorInput.addEventListener('input', (event) => {
-          const value = event.target.value.trim();
-          if (value === '') {
-            // Empty input = reset to auto
-            State.updateState({ textColor: null });
-            UI.updateTextColorDisplay(event.target);
-          } else {
-            State.updateTextColorState(value);
-            UI.updateTextColorDisplay(event.target);
-          }
         });
       }
     }
