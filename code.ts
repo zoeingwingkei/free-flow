@@ -1149,6 +1149,11 @@ class UIMessenger {
     }
     this.state.updateState(newState);
 
+    // If the color changed, send updated state back so the UI syncs textColor reset
+    if (msg.strokeColor !== prevColor) {
+      this.sendStateToUI();
+    }
+
     // If the arrow is selected, update the arrow
     if (this.selection.isArrowSelected()) {
       const arrow = this.selection.getSelectedArrow();
