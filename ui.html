@@ -767,13 +767,19 @@
         return /^[0-9A-F]{6}$/i.test(hex);
       },
 
-      // Returns '#000000' or '#FFFFFF' based on stroke luminance — mirrors code.ts getTextColor
+      // Returns '#000000' or '#FFFFFF' — exact same WCAG formula as code.ts getTextColor
       getAutoTextColor(hex) {
-        const r = parseInt(hex.slice(0, 2), 16) / 255;
-        const g = parseInt(hex.slice(2, 4), 16) / 255;
-        const b = parseInt(hex.slice(4, 6), 16) / 255;
-        const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-        return luminance > 0.5 ? '#000000' : '#FFFFFF';
+        const r = parseInt(hex.slice(0, 2), 16);
+        const g = parseInt(hex.slice(2, 4), 16);
+        const b = parseInt(hex.slice(4, 6), 16);
+        const toLinear = (c) => {
+          const s = c / 255;
+          return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+        };
+        const luminance = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+        const blackContrast = (luminance + 0.05) / 0.05;
+        const whiteContrast = 1.05 / (luminance + 0.05);
+        return blackContrast > whiteContrast ? '#000000' : '#FFFFFF';
       },
     }
     const ValidationUtils = {
